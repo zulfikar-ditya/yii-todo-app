@@ -14,6 +14,7 @@ use frontend\models\PasswordResetRequestForm;
 use frontend\models\ResetPasswordForm;
 use frontend\models\SignupForm;
 use frontend\models\ContactForm;
+use common\models\Todo;
 
 /**
  * Site controller
@@ -74,7 +75,34 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        $model = new Todo();
+
+        if (Yii::$app->request->isPost) {
+            $request = Yii::$app->request->Post('Todo');
+            $model->value = $request['value'];
+            $model->description = $request['description'];
+            $model->user_id = Yii::$app->user->identity->id;
+            $model->status = 1;
+            $model->save();
+        }
+
+        $data = Todo::find()->where(['user_id' => Yii::$app->user->id, 'status' => 1])->all();
+
+        return $this->render('index', [
+            'model' => $model,
+            'data' => $data,
+        ]);
+    }
+
+    public function actionDeleteTodo($id) 
+    {
+        $data = Todo::find($id)->where(['user_id' => Yii::$app->user->identity->id, 'status' => 1])->all();
+        if ($data == null) {
+            throw new \yii\web\NotFoundHttpException('data not found');
+        }
+        $data[0]->status = 0;
+        $data[0]->save();
+        return $this->goHome();
     }
 
     /**
@@ -110,39 +138,6 @@ class SiteController extends Controller
         Yii::$app->user->logout();
 
         return $this->goHome();
-    }
-
-    /**
-     * Displays contact page.
-     *
-     * @return mixed
-     */
-    public function actionContact()
-    {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->validate()) {
-            if ($model->sendEmail(Yii::$app->params['adminEmail'])) {
-                Yii::$app->session->setFlash('success', 'Thank you for contacting us. We will respond to you as soon as possible.');
-            } else {
-                Yii::$app->session->setFlash('error', 'There was an error sending your message.');
-            }
-
-            return $this->refresh();
-        } else {
-            return $this->render('contact', [
-                'model' => $model,
-            ]);
-        }
-    }
-
-    /**
-     * Displays about page.
-     *
-     * @return mixed
-     */
-    public function actionAbout()
-    {
-        return $this->render('about');
     }
 
     /**
